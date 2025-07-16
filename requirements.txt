@@ -1,0 +1,7 @@
+bs4
+streamlit
+undetected-chromedriver
+deep_translator
+ollama
+rapidfuzz
+pydantic
