@@ -91,38 +91,22 @@ def scrape_posts(query: str):
     return data_json
 
 
-def scrape_post(url: str, id):
+def scrape_post(url: str, id: str):
     driver.get(url)
     soup = BeautifulSoup(driver.page_source, 'html.parser')
 
     # Get description
-    open(f'./res/pages/{id}/description.txt', 'w+', encoding='utf-8').write(
-        soup.find('meta', {'name': 'description'})['content']
-    )
+    description = soup.find('meta', {'name': 'description'})['content']
 
     # Get Image if available
     images = [s['content']
               for s in soup.find_all('meta', {'name': 'og:image'})]
 
-    if images and not os.path.exists(f'./res/pages/{id}/images'):
-        os.mkdir(f'./res/pages/{id}/images')
-
-    for i, image in enumerate(images):
-        open(f'./res/pages/{id}/images/{i}.jpeg', 'wb').write(
-            requests.get(image).content
-        )
-
     # Get Videos if available
     videos = [s['content']
               for s in soup.find_all('meta', {'name': 'og:video'})]
 
-    if videos and not os.path.exists(f'./res/pages/{id}/videos'):
-        os.mkdir(f'./res/pages/{id}/videos')
-
-    for i, video in enumerate(videos):
-        open(f'./res/pages/{id}/videos/{i}.mp4', 'wb').write(
-            requests.get(video).content
-        )
+    return description, images, videos
 
 
 def extract_useful_sentences(raw_text):
@@ -140,11 +124,40 @@ translator = GoogleTranslator(source='auto', target='en')
 
 if __name__ == "__main__":
     query = 'Labubu One Piece Weights'
-    data = json.load(open('./data.json', 'r', encoding='utf-8'))
-    for post in scrape_posts(query).values():
-        if post['id'] not in data:
-            data[post['id']] = post
+    data: dict = json.load(open('./res/data.json', 'r', encoding='utf-8'))
 
-    for id, post in data.items():
-        if not data[id]['description']:
-            post_data = scrape_post()
+    # Obtain posts
+    if False:
+        for post in scrape_posts(query).values():
+            data[post['id']] = {
+                "xsec_token": post['xsec_token'],
+                "description": '',
+                "images": [],
+                "videos": [],
+                "likes": post['note_card']['interact_info']['liked_count'],
+            }
+        json.dump(data, open('./res/data.json',
+                  'w', encoding='utf-8'), indent=4)
+
+    # Scrape posts
+    if True:
+        for id, post in data.items():
+            d, i, v = scrape_post(
+                f'https://www.xiaohongshu.com/explore/{id}?xsec_token={post["xsec_token"]}',
+                id
+            )
+            post['description'] = d
+            post['images'] = i
+            post['videos'] = v
+
+        json.dump(data, open('./res/data.json',
+                  'w', encoding='utf-8'), indent=4)
+if False:
+    from datetime import datetime
+    import pytz
+
+    # Define the China Standard Time (CST) timezone
+    china_timezone = pytz.timezone('Asia/Shanghai')
+
+    # Get the current time in the specified timezone
+    china_time = datetime.now(china_timezone)
